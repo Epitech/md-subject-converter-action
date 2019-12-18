@@ -1,11 +1,11 @@
 name: 'Epitech Subject MD Converter'
 description: 'Convert a md file to an epitech subject or presentation'
 inputs:
-  file:
-    description: 'path to the file'
+  files:
+    description: 'path of all the md files to convert'
     required: true
 runs:
   using: 'docker'
   image: 'docker://epitechcontent/subject_template'
   args:
-    - ${{ inputs.file }}
+    - ${{ inputs.files }}
