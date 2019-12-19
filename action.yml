@@ -10,4 +10,4 @@ runs:
   entrypoint: sh
   args:
     - '-c'
-    - '/template/entrypoint.sh $(echo ${{inputs.files}})'
+    - '/template/entrypoint.sh $(echo "${{inputs.files}}")'
