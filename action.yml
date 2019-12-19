@@ -9,4 +9,4 @@ runs:
   image: 'docker://epitechcontent/subject_template'
   entrypoint: sh -c
   args:
-    - 'eval /root/entrypoint.sh ${{inputs.files}}'
+    - 'eval /template/entrypoint.sh ${{inputs.files}}'
