@@ -7,6 +7,7 @@ inputs:
 runs:
   using: 'docker'
   image: 'docker://epitechcontent/subject_template'
-  entrypoint: sh -c
+  entrypoint: sh
   args:
-    - 'eval /template/entrypoint.sh ${{inputs.files}}'
+    - '-c'
+    - '/template/entrypoint.sh $(echo ${{inputs.files}})'
