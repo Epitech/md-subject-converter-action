@@ -1,4 +1,4 @@
-name: 'Epitech Subject MD Converter'
+name: 'Epitech md converter'
 description: 'Convert a md file to an epitech subject or presentation'
 inputs:
   files:
