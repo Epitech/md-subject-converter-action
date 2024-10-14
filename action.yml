@@ -52,3 +52,7 @@ runs:
         path: |
           **/*.pdf
           **/*.html
+          **/*.pptx
+          img/
+          resources/
+          
