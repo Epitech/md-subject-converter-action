@@ -1,13 +1,54 @@
-name: 'Epitech md converter'
-description: 'Convert a md file to an epitech subject or presentation'
+name: Epitech md converter
+description: Convert markdown files to Epitech PDF and HTML.
+
 inputs:
-  files:
-    description: 'path of all the md files to convert'
+  md_path:
+    description: 'Path to markdown files'
+    required: false
+    default: '*.md'
+  ghcr_username:
+    description: 'GitHub username for Docker login'
+    required: false
+    default: 'edex-argos'
+  ghcr_token:
+    description: 'Token or password for Docker login'
     required: true
+  docker_image:
+    description: 'Docker image to use for conversion'
+    required: false
+    default: 'ghcr.io/epitech/docker-md-converter:master'
+
 runs:
-  using: 'docker'
-  image: 'docker://epitechcontent/subject_template'
-  entrypoint: sh
-  args:
-    - '-c'
-    - '/template/Epitech_md-compilation.sh $(echo "${{inputs.files}}")'
+  using: 'composite'
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Login to GitHub Container Registry
+      run: docker login ghcr.io -u ${{ inputs.ghcr_username }} -p ${{ inputs.ghcr_token }}
+      shell: bash
+
+    - name: Pull Docker image
+      run: docker pull ${{ inputs.docker_image }}
+      shell: bash
+
+    - name: Get repo name
+      id: repository_name
+      run: echo "REPO_NAME=$(echo ${{ github.repository }} | awk -F / '{print $2}' | sed -e 's/:refs//')" >> "$GITHUB_OUTPUT"
+      shell: bash
+
+    - name: Create markdown file list
+      id: md_files_list
+      run: echo "MD_FILES=$(find . -name '${{ inputs.md_path }}' -printf '"%p" ')" >> "$GITHUB_OUTPUT"
+      shell: bash
+
+    - name: Converting markdown
+      run: docker run --rm --privileged -v ${{ github.workspace }}:/work -w="/work" ${{ inputs.docker_image }} -y '${{ steps.repository_name.outputs.REPO_NAME }}.yaml' ${{ steps.md_files_list.outputs.MD_FILES }}
+      shell: bash
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: "${{ steps.repository_name.outputs.REPO_NAME }}"
+        path: |
+          **/*.pdf
+          **/*.html
