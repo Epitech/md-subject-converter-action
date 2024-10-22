@@ -26,7 +26,7 @@ on:
 
 jobs:
   convert_via_pandoc:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Convert markdown to PDF and HTML
         uses: Epitech/md-subject-converter-action@v1
