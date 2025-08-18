@@ -12,16 +12,12 @@ on:
   push:
     paths:
       - "**.md"
-      - "**.yml"
-      - "**.yaml"
   pull_request:
     branches:
       - main
       - master
     paths:
       - "**.md"
-      - "**.yml"
-      - "**.yaml"
   workflow_dispatch:
 
 jobs:
