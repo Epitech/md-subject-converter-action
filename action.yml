@@ -37,13 +37,28 @@ runs:
       run: echo "REPO_NAME=$(echo ${{ github.repository }} | awk -F / '{print $2}' | sed -e 's/:refs//')" >> "$GITHUB_OUTPUT"
       shell: bash
 
+    - name: Select config file
+      id: select_config
+      run: |
+        if [ -f config.yaml ]; then
+          echo "Using config.yaml"
+          echo "CONFIG_FILE=config.yaml" >> $GITHUB_OUTPUT
+        elif [ -f "${{ steps.repository_name.outputs.REPO_NAME }}.yaml" ]; then
+          echo "Using repo-specific config"
+          echo "CONFIG_FILE=${{ steps.repository_name.outputs.REPO_NAME }}.yaml" >> $GITHUB_OUTPUT
+        else
+          echo "No config file found!" >&2
+          exit 1
+        fi
+      shell: bash
+
     - name: Create markdown file list
       id: md_files_list
       run: echo "MD_FILES=$(find . -name '${{ inputs.md_path }}' -printf '"%p" ')" >> "$GITHUB_OUTPUT"
       shell: bash
 
     - name: Converting markdown
-      run: docker run --rm --privileged -v ${{ github.workspace }}:/work -w="/work" ${{ inputs.docker_image }} -y '${{ steps.repository_name.outputs.REPO_NAME }}.yaml' ${{ steps.md_files_list.outputs.MD_FILES }}
+      run: docker run --rm --privileged -v ${{ github.workspace }}:/work -w="/work" ${{ inputs.docker_image }} -y '${{ steps.select_config.outputs.CONFIG_FILE }}.yaml' ${{ steps.md_files_list.outputs.MD_FILES }}
       shell: bash
 
     - uses: actions/upload-artifact@v4
