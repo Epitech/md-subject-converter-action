@@ -48,7 +48,6 @@ runs:
           echo "CONFIG_FILE=${{ steps.repository_name.outputs.REPO_NAME }}.yaml" >> $GITHUB_OUTPUT
         else
           echo "No config file found!" >&2
-          exit 1
         fi
       shell: bash
 
