@@ -22,7 +22,7 @@ runs:
   using: 'composite'
   steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Login to GitHub Container Registry
       run: docker login ghcr.io -u ${{ inputs.ghcr_username }} -p ${{ inputs.ghcr_token }}
@@ -60,7 +60,7 @@ runs:
       run: docker run --rm --privileged -v ${{ github.workspace }}:/work -w="/work" ${{ inputs.docker_image }} -y '${{ steps.select_config.outputs.CONFIG_FILE }}' ${{ steps.md_files_list.outputs.MD_FILES }}
       shell: bash
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v6
       with:
         name: "${{ steps.repository_name.outputs.REPO_NAME }}"
         path: |
