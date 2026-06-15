@@ -53,7 +53,7 @@ runs:
 
     - name: Create markdown file list
       id: md_files_list
-      run: echo "MD_FILES=$(find . -name '${{ inputs.md_path }}' -printf '"%p" ')" >> "$GITHUB_OUTPUT"
+      run: echo "MD_FILES=$(find . -name '${{ inputs.md_path }}' ! -name 'README*.md' -printf '"%p" ')" >> "$GITHUB_OUTPUT"
       shell: bash
 
     - name: Converting markdown
@@ -64,6 +64,7 @@ runs:
       with:
         name: "${{ steps.repository_name.outputs.REPO_NAME }}"
         path: |
+          **/README*.md
           **/*.pdf
           **/*.html
           **/*.pptx
