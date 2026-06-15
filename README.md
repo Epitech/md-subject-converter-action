@@ -3,6 +3,7 @@
 ## Getting Started
 
 This action converts the markdown subject to a PDF and HTML version.
+Files matching `README*.md` are excluded from conversion, but they are still included in the uploaded workflow artifact.
 
 To use this action, you need to create a workflow file in your repository's `.github/workflows` directory. An example workflow file is shown below:
 
