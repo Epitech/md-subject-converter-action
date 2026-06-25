@@ -57,7 +57,7 @@ runs:
       shell: bash
 
     - name: Converting markdown
-      run: docker run --rm --privileged -v ${{ github.workspace }}:/work -w="/work" ${{ inputs.docker_image }} -y '${{ steps.select_config.outputs.CONFIG_FILE }}' ${{ steps.md_files_list.outputs.MD_FILES }}
+      run: docker run --rm --privileged -v ${{ github.workspace }}:/work -w="/work" ${{ inputs.docker_image }} -g -y '${{ steps.select_config.outputs.CONFIG_FILE }}' ${{ steps.md_files_list.outputs.MD_FILES }}
       shell: bash
 
     - uses: actions/upload-artifact@v6
