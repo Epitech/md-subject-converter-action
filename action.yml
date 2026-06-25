@@ -61,6 +61,7 @@ runs:
       shell: bash
 
     - uses: actions/upload-artifact@v6
+      if: success() || failure()
       with:
         name: "${{ steps.repository_name.outputs.REPO_NAME }}"
         path: |
