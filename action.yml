@@ -17,6 +17,22 @@ inputs:
     description: 'Docker image to use for conversion'
     required: false
     default: 'ghcr.io/epitech/docker-md-converter:master'
+  github_token:
+    description: 'Token used to create the release on the converted repository'
+    required: false
+    default: ${{ github.token }}
+  release_tag_prefix:
+    description: 'Prefix of the timestamped tag created for each release'
+    required: false
+    default: 'subject'
+  publish_release:
+    description: 'Publish converted files as assets of a timestamped release'
+    required: false
+    default: 'true'
+  upload_artifact:
+    description: 'Also upload converted files as a workflow artifact'
+    required: false
+    default: 'true'
 
 runs:
   using: 'composite'
@@ -53,15 +69,88 @@ runs:
 
     - name: Create markdown file list
       id: md_files_list
-      run: echo "MD_FILES=$(find . -name '${{ inputs.md_path }}' ! -name 'README*.md' -printf '"%p" ')" >> "$GITHUB_OUTPUT"
+      run: echo "MD_FILES=$(find . -name '${{ inputs.md_path }}' ! -name 'README*.md' ! -name '*grading_scale.md' -printf '"%p" ')" >> "$GITHUB_OUTPUT"
       shell: bash
 
     - name: Converting markdown
       run: docker run --rm --privileged -v ${{ github.workspace }}:/work -w="/work" ${{ inputs.docker_image }} -g -y '${{ steps.select_config.outputs.CONFIG_FILE }}' ${{ steps.md_files_list.outputs.MD_FILES }}
       shell: bash
 
+    - name: Compute release metadata
+      id: release_metadata
+      if: ${{ success() && inputs.publish_release == 'true' && github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch }}
+      run: |
+        echo "TAG=${{ inputs.release_tag_prefix }}-$(date -u +'%Y%m%d-%H%M%S')" >> "$GITHUB_OUTPUT"
+        echo "TITLE=$(date -u +'%Y-%m-%d %H:%M UTC')" >> "$GITHUB_OUTPUT"
+      shell: bash
+
+    - name: Stage release assets
+      id: stage_assets
+      if: ${{ success() && inputs.publish_release == 'true' && github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch }}
+      run: |
+        staging="$RUNNER_TEMP/release-assets"
+        rm -rf "$staging"
+        mkdir -p "$staging"
+        zip_list="$RUNNER_TEMP/zip-contents.txt"
+        : > "$zip_list"
+        if [ -f README.md ]; then
+          echo 'README.md' >> "$zip_list"
+          cp README.md "$staging/"
+        fi
+        find . -type f \( -name '*.pdf' -o -name '*.html' -o -name '*.pptx' \) ! -name '*grading_scale.*' -not -path './.git/*' | sed 's|^\./||' >> "$zip_list"
+        for dir in img resources; do
+          if [ -d "$dir" ]; then
+            find "$dir" -type f >> "$zip_list"
+          fi
+        done
+        cat > "$RUNNER_TEMP/make_zip.py" <<'PY'
+        import sys, zipfile
+        dest, listing = sys.argv[1], sys.argv[2]
+        with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as archive:
+            with open(listing, encoding="utf-8") as handle:
+                for line in handle.read().splitlines():
+                    path = line.rstrip()
+                    if path:
+                        archive.write(path, path)
+        PY
+        zip_name="${{ steps.repository_name.outputs.REPO_NAME }}.zip"
+        if command -v python3 > /dev/null; then
+          python3 "$RUNNER_TEMP/make_zip.py" "$staging/$zip_name" "$zip_list"
+        else
+          echo "python3 not found on the runner, building the archive with Docker"
+          docker run --rm -v "$GITHUB_WORKSPACE:/work" -v "$staging:/out" -v "$RUNNER_TEMP/make_zip.py:/make_zip.py:ro" -v "$zip_list:/zip-list.txt:ro" -w /work python:3-alpine python /make_zip.py "/out/$zip_name" /zip-list.txt
+        fi
+        list="$RUNNER_TEMP/converted-pdf.txt"
+        find . -type f -name '*.pdf' ! -name '*grading_scale.pdf' -not -path './.git/*' > "$list"
+        awk -F/ '{ print $NF }' "$list" | sort | uniq -d > "$RUNNER_TEMP/duplicate-names.txt"
+        while IFS= read -r file; do
+          base=${file##*/}
+          if grep -Fxq "$base" "$RUNNER_TEMP/duplicate-names.txt"; then
+            name=${file#./}
+            name=${name//\//-}
+            echo "Renaming $file -> $name (duplicate base name)"
+          else
+            name=$base
+          fi
+          cp "$file" "$staging/$name"
+        done < "$list"
+        echo "STAGING_DIR=$staging" >> "$GITHUB_OUTPUT"
+      shell: bash
+
+    - name: Publish converted files as a release
+      if: ${{ success() && inputs.publish_release == 'true' && github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch }}
+      uses: softprops/action-gh-release@v2
+      with:
+        token: ${{ inputs.github_token }}
+        tag_name: ${{ steps.release_metadata.outputs.TAG }}
+        name: "${{ steps.repository_name.outputs.REPO_NAME }} - ${{ steps.release_metadata.outputs.TITLE }}"
+        body: "Generated from ${{ github.sha }}"
+        make_latest: true
+        fail_on_unmatched_files: false
+        files: ${{ steps.stage_assets.outputs.STAGING_DIR }}/*
+
     - uses: actions/upload-artifact@v6
-      if: success() || failure()
+      if: ${{ (success() || failure()) && inputs.upload_artifact == 'true' }}
       with:
         name: "${{ steps.repository_name.outputs.REPO_NAME }}"
         path: |
@@ -71,4 +160,4 @@ runs:
           **/*.pptx
           img/
           resources/
-          
+          !**/*grading_scale.*
