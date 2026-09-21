@@ -17,6 +17,22 @@ inputs:
     description: 'Docker image to use for conversion'
     required: false
     default: 'ghcr.io/epitech/docker-md-converter:master'
+  github_token:
+    description: 'Token used to create the release on the converted repository'
+    required: false
+    default: ${{ github.token }}
+  release_tag:
+    description: 'Tag of the rolling release holding the converted files'
+    required: false
+    default: 'subject'
+  publish_release:
+    description: 'Publish converted files as assets of a rolling release'
+    required: false
+    default: 'true'
+  upload_artifact:
+    description: 'Also upload converted files as a workflow artifact'
+    required: false
+    default: 'true'
 
 runs:
   using: 'composite'
@@ -60,8 +76,40 @@ runs:
       run: docker run --rm --privileged -v ${{ github.workspace }}:/work -w="/work" ${{ inputs.docker_image }} -g -y '${{ steps.select_config.outputs.CONFIG_FILE }}' ${{ steps.md_files_list.outputs.MD_FILES }}
       shell: bash
 
+    - name: Delete previous release
+      if: ${{ success() && inputs.publish_release == 'true' && github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch }}
+      run: |
+        api="${{ github.api_url }}/repos/${{ github.repository }}"
+        auth="Authorization: Bearer ${{ inputs.github_token }}"
+        release=$(curl -s -H "$auth" "$api/releases/tags/${{ inputs.release_tag }}")
+        case "$release" in
+          *'"id":'*)
+            id=${release#*'"id":'}
+            id=${id%%,*}
+            echo "Deleting release $id"
+            curl -sf -X DELETE -H "$auth" "$api/releases/$id"
+            ;;
+        esac
+        curl -s -X DELETE -H "$auth" "$api/git/refs/tags/${{ inputs.release_tag }}" > /dev/null
+      shell: bash
+
+    - name: Publish converted files as a release
+      if: ${{ success() && inputs.publish_release == 'true' && github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch }}
+      uses: softprops/action-gh-release@v2
+      with:
+        token: ${{ inputs.github_token }}
+        tag_name: ${{ inputs.release_tag }}
+        name: ${{ steps.repository_name.outputs.REPO_NAME }}
+        body: "Generated from ${{ github.sha }}"
+        make_latest: true
+        fail_on_unmatched_files: false
+        files: |
+          **/*.pdf
+          **/*.html
+          **/*.pptx
+
     - uses: actions/upload-artifact@v6
-      if: success() || failure()
+      if: ${{ (success() || failure()) && inputs.upload_artifact == 'true' }}
       with:
         name: "${{ steps.repository_name.outputs.REPO_NAME }}"
         path: |
@@ -71,4 +119,3 @@ runs:
           **/*.pptx
           img/
           resources/
-          
