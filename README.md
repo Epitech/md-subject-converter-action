@@ -41,6 +41,29 @@ jobs:
 `permissions: contents: write` is **required**: without it the action cannot create the release that
 holds the converted files. Set `publish_release: 'false'` if you only want the workflow artifact.
 
+## Upgrading from v1 to v2
+
+Starting with `v2`, the converted files are published as a **GitHub release** on your repository, not
+only as a workflow artifact — workflow artifacts were silently lost once the organisation hit its
+Actions storage quota. Two changes are needed in your workflow:
+
+1. Bump the action reference from `@v1` to `@v2`.
+2. Add `permissions: contents: write` to the job, so the action is allowed to create that release.
+
+```diff
+   convert_via_pandoc:
+     runs-on: self-hosted
++    permissions:
++      contents: write
+     steps:
+       - name: Convert markdown to PDF and HTML
+-        uses: Epitech/md-subject-converter-action@v1
++        uses: Epitech/md-subject-converter-action@v2
+```
+
+Nothing else changes: the inputs you already pass keep working, and the workflow artifact is still
+uploaded. Forgetting the permission block makes the release step fail with a `403`.
+
 ## Where the converted files land
 
 The action publishes its output twice:
