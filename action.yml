@@ -138,7 +138,9 @@ runs:
       shell: bash
 
     - name: Publish converted files as a release
+      id: publish_release
       if: ${{ success() && inputs.publish_release == 'true' && github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch }}
+      continue-on-error: true
       uses: softprops/action-gh-release@v2
       with:
         token: ${{ inputs.github_token }}
@@ -149,8 +151,11 @@ runs:
         fail_on_unmatched_files: false
         files: ${{ steps.stage_assets.outputs.STAGING_DIR }}/*
 
-    - uses: actions/upload-artifact@v6
+    - name: Upload converted files as an artifact
+      id: upload_artifact
       if: ${{ (success() || failure()) && inputs.upload_artifact == 'true' }}
+      continue-on-error: true
+      uses: actions/upload-artifact@v6
       with:
         name: "${{ steps.repository_name.outputs.REPO_NAME }}"
         path: |
@@ -161,3 +166,23 @@ runs:
           img/
           resources/
           !**/*grading_scale.*
+
+    - name: Check publication outcome
+      if: ${{ !cancelled() }}
+      run: |
+        release='${{ steps.publish_release.outcome }}'
+        artifact='${{ steps.upload_artifact.outcome }}'
+        echo "release: ${release:-skipped}, artifact: ${artifact:-skipped}"
+        failed=false
+        if [ "$release" = 'failure' ] || [ "$artifact" = 'failure' ]; then
+          failed=true
+        fi
+        if [ "$release" = 'success' ] || [ "$artifact" = 'success' ]; then
+          if [ "$failed" = 'true' ]; then
+            echo "::warning::One publication channel failed (release: ${release:-skipped}, artifact: ${artifact:-skipped}); the converted files are still available through the other one."
+          fi
+        elif [ "$failed" = 'true' ]; then
+          echo "::error::Every publication channel failed (release: ${release:-skipped}, artifact: ${artifact:-skipped}); the converted files were not published anywhere."
+          exit 1
+        fi
+      shell: bash

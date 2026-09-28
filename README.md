@@ -84,6 +84,12 @@ The action publishes its output twice:
 - **As a workflow artifact.** Kept as a fallback — it is also produced on pull requests and when the
   conversion fails, so a partial output can still be retrieved.
 
+Both channels are independent: when one of them fails — typically the artifact upload once the
+organisation hits its Actions storage quota — the workflow stays **green** and only prints a warning,
+because the converted files are still reachable through the other one. It turns red when every
+publication channel enabled for that run failed. A failure of the conversion itself still fails the
+workflow, as before.
+
 Release assets are flat, but only the PDFs are published individually, so the directory structure is
 preserved in the zip. Should two PDFs in different directories share a base name, *both* are prefixed
 with their path (`day01/subject.pdf` becomes `day01-subject.pdf`) so neither is silently overwritten.
