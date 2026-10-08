@@ -100,9 +100,10 @@ runs:
         find . -type f \( -name '*.pdf' -o -name '*.html' -o -name '*.pptx' \) ! -name '*grading_scale.*' -not -path './.git/*' | sed 's|^\./||' >> "$zip_list"
         for dir in img resources; do
           if [ -d "$dir" ]; then
-            find "$dir" -type f >> "$zip_list"
+            find "$dir" -type f ! -name '*grading_scale.*' >> "$zip_list"
           fi
         done
+        sort -u -o "$zip_list" "$zip_list"
         cat > "$RUNNER_TEMP/make_zip.py" <<'PY'
         import sys, zipfile
         dest, listing = sys.argv[1], sys.argv[2]
